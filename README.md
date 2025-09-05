@@ -67,7 +67,21 @@ You must tell the scripts where to find and save your project files.
 
 Follow these steps for each project analysis.
 
-### ✅ Step 1: Assign PipeRunIDs in Revit
+### ✅ **Step 1: Initial Schematic Design & Setup in Pipe-Flo**
+
+**Who:** Design Engineer
+
+Before any 3D modeling, the hydraulic foundation must be built in Pipe-Flo. This initial setup is the most critical phase as it defines the data structure for the entire project.
+
+1. **Create the 2D Schematic**: Draw the complete hydraulic schematic in Pipe-Flo. This drawing will serve as the definitive master plan.  
+2. **Assign `PipeRunID`s**: Name each **pipe** in the schematic using the unique `PipeRunID` (e.g., `CHW-S-P1-J1`). [cite_start]This ID is the "digital link" that connects all workflow stages[cite: 6].  
+3. **Define Materials and Sizes**: Set up all required pipe material specifications in Pipe-Flo. You must ensure that these specifications include all valid pipe sizes that will be used in the Revit model to prevent data import errors later.  
+4. **Create the Template Pipe**: In the Pipe-Flo model, create one pipe named exactly **`TEMPLATE_PIPE`**. This pipe acts as a library; it must have every single fitting that will be used across the project installed on it. The import script uses this template to identify and assign fittings correctly.  
+5. **Establish Node Naming Convention**: This is essential for the script to update elevations automatically. The `aggregate.py` script generates node names using a specific format: `[PipeRunID]_StartNode` and `[PipeRunID]_EndNode`. You **must** follow this exact convention when naming the nodes in your Pipe-Flo schematic.  
+    * For a pipe run named `CHW-S-P1-J1`, its corresponding nodes must be named `CHW-S-P1-J1_StartNode` and `CHW-S-P1-J1_EndNode`.  
+    * **Important**: Where multiple pipes connect, a single node will serve as the "end" for one pipe and the "start" for another. You must name the node according to its primary function in the junction or simply ensure a consistent naming that the script can reference. For example, the node connecting `PipeA` and `PipeB` could be named `PipeA_EndNode`, and `PipeB` would connect to that same node.
+
+### ✅ Step 2: Assign PipeRunIDs in Revit
 
 A **Pipe Run** is defined as the entire length of pipe between two major components or junctions.
 
@@ -75,7 +89,7 @@ A **Pipe Run** is defined as the entire length of pipe between two major compone
 2. In the **Properties** panel, find the **`PipeRunID`** parameter.
 3. Enter the unique ID (e.g., `CHW-S-P1-J1`) that you have defined on your 2D schematic. This step is critical for the automation to work.
 
-### ✅ Step 2: Export Data Using Dynamo
+### ✅ Step 3: Export Data Using Dynamo
 
 This step extracts the raw data from your Revit model.
 
@@ -86,13 +100,13 @@ This step extracts the raw data from your Revit model.
    * 💡 **Pro Tip**: Copy the `"revit_export_path"` value from your `config.json` file and paste it directly into this **String** node to ensure consistency.
 5. Ensure the **Boolean** toggle is set to `True` and click **Run**.
 
-### ✅ Step 3: Process the Raw Data
+### ✅ Step 4: Process the Raw Data
 
 This step takes the raw data from Revit and consolidates it by `PipeRunID`.
 
 * Run the `aggregate.py` script. It will read the file specified in your `config.json` and create the final, structured CSV file at the location you defined.
 
-### ✅ Step 4: Import Data into Pipe-Flo
+### ✅ Step 5: Import Data into Pipe-Flo
 
 This final step populates your Pipe-Flo schematic.
 
