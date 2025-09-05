@@ -41,29 +41,69 @@ The `fitting_map.csv` file has two simple columns:
 
 Suppose your Revit model has fittings named:
 
-* `Generic-Elbow-Std-90deg`  
-* `CS_Tee_Threaded-150mm`  
-* `VendorX_ButterflyValve_Model-Y`  
+* `MAGI-GEN`  
+* `MAGI-PEX`  
+* `CVSF`  
+* `BFV`  
+* `TEE-13106_CS`  
+* `TRANSITION-11109-0001`  
+* `Threaded-Elbow_Malleable iron`  
+* `ELBOW-12506`  
+* `EN 10253-3 Plug`  
+* `OUTLET-1030040001`  
+* `TEE`  
+* `ELBOW`  
+* `Reducer`  
+* `Plug`  
 
 And your Pipe-Flo `TEMPLATE_PIPE` has fittings named:
 
-* `Std Elbow 90`  
-* `Std Tee Thru`  
+* `Reducer - Contraction`  
+* `Pipe Bend - r/d 1`  
 * `Butterfly`  
+* `Tee - Flow Thru Branch`  
+* `Reducer - Enlargement`  
+* `Elbow - Standard 90°`  
+* `Plug`  
+* `Exit - Rounded`  
+* `Std Tee Thru`  
+* `Std Elbow 90`  
 
 Your `fitting_map.csv` should look like this:
 
-| keyword         | pipeflo_name   |
-| :-------------- | :------------ |
-| TEE             | Std Tee Thru  |
-| ELBOW           | Std Elbow 90  |
-| ButterflyValve  | Butterfly     |
+| keyword                        | pipeflo_name               |
+| :----------------------------- | :------------------------ |
+| MAGI-GEN                        | Reducer - Contraction     |
+| MAGI-PEX                        | Pipe Bend - r/d 1         |
+| CVSF                            | Butterfly                 |
+| BFV                             | Butterfly                 |
+| TEE-13106_CS                     | Tee - Flow Thru Branch    |
+| TRANSITION-11109-0001           | Reducer - Enlargement     |
+| Threaded-Elbow_Malleable iron   | Elbow - Standard 90°      |
+| ELBOW-12506                     | Elbow - Standard 90°      |
+| EN 10253-3 Plug                  | Plug                      |
+| OUTLET-1030040001                | Exit - Rounded            |
+| TEE                             | Std Tee Thru              |
+| ELBOW                           | Std Elbow 90              |
+| Reducer                         | Reducer - Enlargement     |
+| Plug                            | Plug                      |
 
 **How the script processes this:**
 
-* `Generic-**Elbow**-Std-90deg` → keyword `ELBOW` → maps to **`Std Elbow 90`**  
-* `CS_**Tee**_Threaded-150mm` → keyword `TEE` → maps to **`Std Tee Thru`**  
-* `VendorX_**ButterflyValve**_Model-Y` → keyword `ButterflyValve` → maps to **`Butterfly`**
+* `MAGI-**GEN**` → maps to **Reducer - Contraction**  
+* `MAGI-**PEX**` → maps to **Pipe Bend - r/d 1**  
+* `CVSF` → maps to **Butterfly**  
+* `BFV` → maps to **Butterfly**  
+* `TEE-13106_CS` → maps to **Tee - Flow Thru Branch**  
+* `TRANSITION-11109-0001` → maps to **Reducer - Enlargement**  
+* `Threaded-Elbow_Malleable iron` → maps to **Elbow - Standard 90°**  
+* `ELBOW-12506` → maps to **Elbow - Standard 90°**  
+* `EN 10253-3 Plug` → maps to **Plug**  
+* `OUTLET-1030040001` → maps to **Exit - Rounded**  
+* `TEE` → maps to **Std Tee Thru**  
+* `ELBOW` → maps to **Std Elbow 90**  
+* `Reducer` → maps to **Reducer - Enlargement**  
+* `Plug` → maps to **Plug**
 
 ---
 

@@ -120,6 +120,9 @@ The script will find each pipe by its `PipeRunID` and automatically update its l
 
 For a detailed guide on how to manually edit the CSV file to import data for various devices and manage different operational scenarios, please see the **[CSV Import Manual](./docs/csv_import_manual.md)**.
 
+For a detailed guide on how the fitting map works and how to set up the keyword matching, please see the **[Fitting Map Manual](./docs/fitting_map_manual.md)**.
+
+
 ## 📎 License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
