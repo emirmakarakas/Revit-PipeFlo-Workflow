@@ -116,6 +116,10 @@ This final step populates your Pipe-Flo schematic.
 
 The script will find each pipe by its `PipeRunID` and automatically update its length,material,size and list of fittings based on the data from your 3D Revit model.
 
+## 📚 Documentation
+
+For a detailed guide on how to manually edit the CSV file to import data for various devices and manage different operational scenarios, please see the **[CSV Import Manual](./docs/csv_import_manual.md)**.
+
 ## 📎 License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
