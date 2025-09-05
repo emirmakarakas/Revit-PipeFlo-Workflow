@@ -1,12 +1,14 @@
 import csv
 import os
+import json
 
 # --- User Settings ---
 # In your PIPE-FLO model, create a pipe with this exact name.
 # Manually add ALL the fittings you will use in your CSV to this one pipe.
-TEMPLATE_PIPE_NAME = "TEMPLATE_PIPE"
+TEMPLATE_PIPE_NAME = config['template_pipe_name']
 # The name of the CSV file containing the fitting keyword map.
-FITTING_MAP_CSV = "fitting_map.csv"
+FITTING_MAP_CSV = config['fitting_map_path']
+PROCESSED_DATA_CSV = config['processed_data_path']
 
 def get_flo_fitting_name(revit_name, keyword_map):
     """
@@ -70,7 +72,7 @@ def initialize_system_data_by_type():
     
     try:
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        csv_filepath = os.path.join(script_dir, 'final_pipeflo_data_structured.csv')
+        csv_filepath = os.path.join(script_dir, PROCESSED_DATA_CSV)
 
         with open(csv_filepath, 'r') as csvfile:
             reader = csv.reader(csvfile, delimiter=',') 

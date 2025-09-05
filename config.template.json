@@ -1,0 +1,18 @@
+{
+  "//": "Welcome! This is the configuration file for the Revit-to-PipeFlo workflow. Before running the scripts, copy this file, rename it to 'config.json', and fill in the paths below.",
+
+  "//": "--- 1. Dynamo Output File ---",
+  "revit_export_path": "C:/PATH/TO/YOUR/PROJECT/raw_data_from_revit.csv",
+  "//": "Enter the FULL path where the Dynamo script should save the raw data it extracts from Revit. You can name the .csv file anything you like.",
+
+  "//": "--- 2. Processed Data File ---",
+  "processed_data_path": "C:/PATH/TO/YOUR/PROJECT/processed_data_for_pipeflo.csv",
+  "//": "Enter the FULL path where the 'aggregate.py' script will save the cleaned-up data. This is the file that will be imported into Pipe-Flo. You can name it anything you like.",
+
+  "//": "--- 3. Pipe-Flo Settings ---",
+  "fitting_map_path": "fitting_map.csv",
+  "//": "The filename for the fitting map. This file should be in the same folder as the Python scripts. If it is located elsewhere, provide the full path.",
+
+  "template_pipe_name": "TEMPLATE_PIPE",
+  "//": "The exact name of the pipe in your Pipe-Flo model that contains all possible fittings for your project."
+}

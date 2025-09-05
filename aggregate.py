@@ -1,10 +1,14 @@
 import pandas as pd
 import numpy as np
 from itertools import combinations
+import json
 
-# Define the input file from Dynamo and the final output file
-input_csv_path = 'bau_revit2csv.csv'
-output_csv_path = 'final_pipeflo_data_structured.csv'
+
+with open('config.json', 'r') as f:
+    config = json.load(f)
+
+input_csv_path = config['revit_export_path']
+output_csv_path = config['processed_data_path']
 
 # --- 1. Define the target header structure ---
 output_columns = [
