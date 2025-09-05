@@ -1,0 +1,194 @@
+{
+  "Uuid": "f7d5dd47-6e03-4cfb-9ec3-2ce98258f94a",
+  "IsCustomNode": false,
+  "Description": "",
+  "Name": "Home",
+  "ElementResolver": {
+    "ResolutionMap": {}
+  },
+  "Inputs": [],
+  "Outputs": [],
+  "Nodes": [
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "Code": "# Copyright(c) 2023, Autodesk Inc.\r\n# All rights reserved.\r\n\r\nimport clr\r\nimport System\r\nimport csv\r\n\r\n# Add Revit API references\r\nclr.AddReference('RevitAPI')\r\nfrom Autodesk.Revit.DB import FilteredElementCollector, BuiltInCategory, BuiltInParameter, FamilySymbol\r\nfrom Autodesk.Revit.DB.Plumbing import Pipe\r\n\r\n# Add Revit Services references\r\nclr.AddReference('RevitServices')\r\nimport RevitServices\r\nfrom RevitServices.Persistence import DocumentManager\r\n\r\n# Get the current Revit document\r\ndoc = DocumentManager.Instance.CurrentDBDocument\r\n\r\n# --- Script Inputs ---\r\n# IN[0]: A boolean toggle. Set to 'True' to run the script.\r\n# IN[1]: File path for the output CSV.\r\nrun_script = IN[0]\r\ncsv_file_path = IN[1]\r\n\r\ndef export_pipe_data_to_csv(document, file_path):\r\n    pipe_collector = FilteredElementCollector(document).OfClass(Pipe).WhereElementIsNotElementType()\r\n    pipes = pipe_collector.ToElements()\r\n    data_rows = []\r\n    error_pipes = []\r\n\r\n    if not pipes:\r\n        return \"No pipes found in the project.\"\r\n\r\n    header = ['ElementId', 'StartX_m', 'StartY_m', 'StartZ_m', 'EndX_m', 'EndY_m', 'EndZ_m', 'SystemName', 'PipeRunID', 'SegmentName', 'Diameter_mm', 'ConnectedFittingNames']\r\n    \r\n    FEET_TO_METERS = 0.3048\r\n    FEET_TO_MM = 304.8\r\n\r\n    for pipe in pipes:\r\n        try:\r\n            element_id = pipe.Id.ToString()\r\n            system_name = pipe.MEPSystem.Name if pipe.MEPSystem and pipe.MEPSystem.Name else \"N/A\"\r\n            \r\n            pipe_run_id = \"N/A\"\r\n            param_pipe_run_id = pipe.LookupParameter(\"PipeRunID\")\r\n            if param_pipe_run_id and param_pipe_run_id.HasValue:\r\n                pipe_run_id = param_pipe_run_id.AsString()\r\n\r\n            segment_name = \"N/A\"\r\n            segment_param = pipe.get_Parameter(BuiltInParameter.RBS_PIPE_SEGMENT_PARAM)\r\n            if segment_param and segment_param.HasValue:\r\n                segment_name = segment_param.AsValueString()\r\n\r\n            diameter_mm = 0.0\r\n            diameter_param = pipe.get_Parameter(BuiltInParameter.RBS_PIPE_DIAMETER_PARAM)\r\n            if diameter_param:\r\n                diameter_mm = diameter_param.AsDouble() * FEET_TO_MM\r\n\r\n            location = pipe.Location\r\n            if not (location and hasattr(location, 'Curve')):\r\n                continue\r\n            \r\n            curve = location.Curve\r\n            start_point = curve.GetEndPoint(0)\r\n            end_point = curve.GetEndPoint(1)\r\n\r\n            # --- MODIFICATION START ---\r\n            # Use a dictionary to store unique fitting instances by their ElementId\r\n            unique_fittings = {}\r\n            if pipe.ConnectorManager:\r\n                for connector in pipe.ConnectorManager.Connectors:\r\n                    for connected_ref in connector.AllRefs:\r\n                        owner = connected_ref.Owner\r\n                        # Check if the connected element is a fitting or accessory\r\n                        if owner and owner.Category and (owner.Category.Id.IntegerValue == int(BuiltInCategory.OST_PipeFitting) or owner.Category.Id.IntegerValue == int(BuiltInCategory.OST_PipeAccessory)):\r\n                            # Use the fitting's ID as the key to ensure uniqueness per instance\r\n                            if owner.Id not in unique_fittings:\r\n                                unique_fittings[owner.Id] = owner.Name\r\n            \r\n            # Format the collected fittings into a \"Name[ID]\" string\r\n            fitting_details_list = [\"{}[{}]\".format(name, id.ToString()) for id, name in unique_fittings.items()]\r\n            fitting_names_str = \";\".join(fitting_details_list)\r\n            # --- MODIFICATION END ---\r\n            \r\n            data_rows.append([\r\n                element_id,\r\n                start_point.X * FEET_TO_METERS, start_point.Y * FEET_TO_METERS, start_point.Z * FEET_TO_METERS,\r\n                end_point.X * FEET_TO_METERS, end_point.Y * FEET_TO_METERS, end_point.Z * FEET_TO_METERS,\r\n                system_name,\r\n                pipe_run_id,\r\n                segment_name,\r\n                round(diameter_mm, 2),\r\n                fitting_names_str\r\n            ])\r\n        except Exception:\r\n            error_pipes.append(pipe.Id.ToString())\r\n            continue\r\n\r\n    # --- Sorting Logic ---\r\n    if data_rows:\r\n        system_name_index = header.index('SystemName')\r\n        pipe_run_id_index = header.index('PipeRunID')\r\n        data_rows.sort(key=lambda row: (row[system_name_index], row[pipe_run_id_index]))\r\n\r\n    try:\r\n        with open(file_path, 'w', newline='', encoding='utf-8-sig') as csvfile:\r\n            writer = csv.writer(csvfile)\r\n            writer.writerow(header)\r\n            writer.writerows(data_rows)\r\n        return \"Successfully exported raw data for {} pipes.\".format(len(data_rows))\r\n    except Exception as e:\r\n        return \"Error writing to CSV file: {}\".format(str(e))\r\n\r\nif run_script:\r\n    OUT = export_pipe_data_to_csv(doc, csv_file_path)\r\nelse:\r\n    OUT = \"Set 'True' to run.\"",
+      "Engine": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "d4359abd72dc4de4aa05b1aa9f9e3a34",
+      "NodeType": "PythonScriptNode",
+      "Inputs": [
+        {
+          "Id": "99dc4ea900e84dd080bec7e5def3ceaf",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "b4e1b774941044cb9d81c273976bd3f7",
+          "Name": "IN[1]",
+          "Description": "Input #1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "a9e70143a9104ea0a7976bf78f6a88d5",
+          "Name": "OUT",
+          "Description": "Result of the python script",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Runs an embedded Python script."
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Input.BoolSelector, CoreNodeModels",
+      "Id": "43443b75af6a49a8b1538a192b02ae7e",
+      "NodeType": "BooleanInputNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "e11c26a3a6084f8293e2f08c95744c6b",
+          "Name": "",
+          "Description": "Boolean",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Enables selection between True and False",
+      "InputValue": true
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Input.StringInput, CoreNodeModels",
+      "Id": "973227b3d3f2421b987f7c4186d13e84",
+      "NodeType": "StringInputNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "d90bc85039b24562a8533759f31122c3",
+          "Name": "",
+          "Description": "String",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Creates a string",
+      "InputValue": "C:\\Users\\metta.stajyer\\Desktop\\bau_revit2csv.csv"
+    }
+  ],
+  "Connectors": [
+    {
+      "Start": "e11c26a3a6084f8293e2f08c95744c6b",
+      "End": "99dc4ea900e84dd080bec7e5def3ceaf",
+      "Id": "e80d62d828114c2b95c279dc198b42f9",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "d90bc85039b24562a8533759f31122c3",
+      "End": "b4e1b774941044cb9d81c273976bd3f7",
+      "Id": "982d36f7e7db4acb991012b29f5b6cb2",
+      "IsHidden": "False"
+    }
+  ],
+  "Dependencies": [],
+  "NodeLibraryDependencies": [],
+  "EnableLegacyPolyCurveBehavior": true,
+  "Thumbnail": "",
+  "GraphDocumentationURL": null,
+  "ExtensionWorkspaceData": [
+    {
+      "ExtensionGuid": "28992e1d-abb9-417f-8b1b-05e053bee670",
+      "Name": "Properties",
+      "Version": "3.0",
+      "Data": {}
+    },
+    {
+      "ExtensionGuid": "DFBD9CC0-DB40-457A-939E-8C8555555A9D",
+      "Name": "Generative Design",
+      "Version": "7.1",
+      "Data": {}
+    }
+  ],
+  "Author": "",
+  "Linting": {
+    "activeLinter": "None",
+    "activeLinterId": "7b75fb44-43fd-4631-a878-29f4d5d8399a",
+    "warningCount": 0,
+    "errorCount": 0
+  },
+  "Bindings": [],
+  "View": {
+    "Dynamo": {
+      "ScaleFactor": 1.0,
+      "HasRunWithoutCrash": true,
+      "IsVisibleInDynamoLibrary": true,
+      "Version": "3.0.3.7597",
+      "RunType": "Manual",
+      "RunPeriod": "1000"
+    },
+    "Camera": {
+      "Name": "_Background Preview",
+      "EyeX": -17.0,
+      "EyeY": 24.0,
+      "EyeZ": 50.0,
+      "LookX": 12.0,
+      "LookY": -13.0,
+      "LookZ": -58.0,
+      "UpX": 0.0,
+      "UpY": 1.0,
+      "UpZ": 0.0
+    },
+    "ConnectorPins": [],
+    "NodeViews": [
+      {
+        "Id": "d4359abd72dc4de4aa05b1aa9f9e3a34",
+        "Name": "Python Script",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 754.5,
+        "Y": 395.0
+      },
+      {
+        "Id": "43443b75af6a49a8b1538a192b02ae7e",
+        "Name": "Boolean",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 471.5,
+        "Y": 394.0
+      },
+      {
+        "Id": "973227b3d3f2421b987f7c4186d13e84",
+        "Name": "String",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 415.5,
+        "Y": 559.0
+      }
+    ],
+    "Annotations": [],
+    "X": -37.0,
+    "Y": -29.5,
+    "Zoom": 1.0
+  }
+}
