@@ -172,13 +172,25 @@ for _, row in final_aggregated_df.iterrows():
 pipe_output_df = pd.DataFrame(pipe_data, columns=output_columns)
 node_output_df = pd.DataFrame(node_data, columns=output_columns)
 
+
 # --- 6. Combine and Save ---
 final_output_df = pd.concat([pipe_output_df, node_output_df], ignore_index=True).fillna('')
+
+# --- MODIFICATION: Get and print the unique fittings list ---
+all_fittings_series = df['ConnectedFittingNames'].dropna().str.split(';').explode()
+unique_fitting_names = all_fittings_series.str.split('[').str[0].str.strip().unique()
+all_fittings_str = "; ".join(sorted(unique_fitting_names))
 
 try:
     final_output_df.to_csv(output_csv_path, index=False, encoding='utf-8-sig')
     print(f" Successfully created formatted CSV file: '{output_csv_path}'")
     print("\n--- Final Data Preview ---")
     print(final_output_df.head(10))
+    
+    print("\n--- Unique Fittings Reference List ---")
+    print(f"Here is a clean list of all unique fittings found in the Revit export:\n\n{all_fittings_str}")
+
+
 except Exception as e:
     print(f" An error occurred while writing the file: {e}")
+    

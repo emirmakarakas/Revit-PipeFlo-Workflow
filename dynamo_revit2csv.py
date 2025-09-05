@@ -38,6 +38,9 @@ def export_pipe_data_to_csv(document, file_path):
     FEET_TO_METERS = 0.3048
     FEET_TO_MM = 304.8
 
+    # Define the list of allowed fitting Part Types
+    allowed_part_types = ["Elbow", "Tee", "Transition", "Cap", "Valve"]
+
     for pipe in pipes:
         try:
             element_id = pipe.Id.ToString()
@@ -67,7 +70,6 @@ def export_pipe_data_to_csv(document, file_path):
             end_point = curve.GetEndPoint(1)
 
             # --- MODIFICATION START ---
-            # Use a dictionary to store unique fitting instances by their ElementId
             unique_fittings = {}
             if pipe.ConnectorManager:
                 for connector in pipe.ConnectorManager.Connectors:
@@ -75,10 +77,19 @@ def export_pipe_data_to_csv(document, file_path):
                         owner = connected_ref.Owner
                         # Check if the connected element is a fitting or accessory
                         if owner and owner.Category and (owner.Category.Id.IntegerValue == int(BuiltInCategory.OST_PipeFitting) or owner.Category.Id.IntegerValue == int(BuiltInCategory.OST_PipeAccessory)):
-                            # Use the fitting's ID as the key to ensure uniqueness per instance
-                            if owner.Id not in unique_fittings:
-                                unique_fittings[owner.Id] = owner.Name
-            
+                            # Now, check the Part Type of the fitting's family
+                            try:
+                                family_instance = owner
+                                symbol = family_instance.Symbol
+                                # Get the Part Type parameter and check if it's in our allowed list
+                                part_type_param = symbol.get_Parameter(BuiltInParameter.FAMILY_CONTENT_PART_TYPE)
+                                if part_type_param and part_type_param.AsValueString() in allowed_part_types:
+                                    if owner.Id not in unique_fittings:
+                                        unique_fittings[owner.Id] = owner.Name
+                            except:
+                                # If any error occurs trying to get Part Type, just skip the fitting
+                                continue
+
             # Format the collected fittings into a "Name[ID]" string
             fitting_details_list = ["{}[{}]".format(name, id.ToString()) for id, name in unique_fittings.items()]
             fitting_names_str = ";".join(fitting_details_list)
