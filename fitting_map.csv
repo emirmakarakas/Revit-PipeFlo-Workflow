@@ -1,19 +1,15 @@
 keyword,pipeflo_name
-MAGI-GEN,
-MAGI-PEX,
-PICV,Control Valve
-CVSF,Check Valve
+MAGI-GEN,Reducer - Contraction
+MAGI-PEX,Pipe Bend - r/d 1
+CVSF,Butterfly
 BFV,Butterfly
-TEE-13106_CS,Std Tee Thru
-TRANSITION-11109-0001,Reducer
-Threaded-Elbow_Malleable iron,Threaded Elbow 90
-ELBOW-12506,Std Elbow 90
-EN 10253-3 Plug,Cap
-Manometer-vert,Tap
-MC_EN-10220_Tap,Tap
-OUTLET-1030040001,Outlet Fitting
+TEE-13106_CS,Tee - Flow Thru Branch
+TRANSITION-11109-0001,Reducer - Enlargement
+Threaded-Elbow_Malleable iron,Elbow - Standard 90°
+ELBOW-12506,Elbow - Standard 90°
+EN 10253-3 Plug,Plug
+OUTLET-1030040001,Exit - Rounded
 TEE,Std Tee Thru
 ELBOW,Std Elbow 90
-Reducer,Reducer
-Plug,Cap
-Tap,Tap
+Reducer,Reducer - Enlargement
+Plug,Plug
