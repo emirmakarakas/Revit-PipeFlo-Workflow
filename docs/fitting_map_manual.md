@@ -32,10 +32,11 @@ The `fitting_map.csv` file has two simple columns:
 ### Steps to Set Up Your Map
 
 1. **Identify Your Revit Naming Convention**: Look at the fitting names in your Revit project. Find a consistent, unique part of the name for each type of fitting. This will be your keyword.  
-2. **Get the Exact Pipe-Flo Name**: In Pipe-Flo, open the properties for the fittings on your `TEMPLATE_PIPE` and copy the exact `description` or name.  
+2. **Get the Exact Pipe-Flo Name**: In Pipe-Flo, open the properties for the fittings on your `TEMPLATE_PIPE` and copy the exact `description` or name.
 3. **Create the Mapping**: Open `fitting_map.csv` and add a new row for each fitting type.  
    * In the `keyword` column, put the unique string from the Revit name.  
-   * In the `pipeflo_name` column, put the exact name from Pipe-Flo.  
+   * In the `pipeflo_name` column, put the exact name from Pipe-Flo.
+   * If you cant find a relevant pipeflo fitting for your revit fitting or if you think that a revit fitting has negligible loss and not worth taking it into account, simply dont add it to the mapping
 
 ### Example Scenario
 
