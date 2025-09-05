@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-from itertools import combinations
 import json
 import math
 from collections import defaultdict, deque
@@ -55,14 +54,19 @@ def aggregate_fittings(series):
         fitting_names.append(name_part)
     return "; ".join(fitting_names)
 
-# --- NEW: Topology-aware elevation calculation ---
 def _snap_point(pt, tol=0.001):
+    """Snap a coordinate to a tolerance grid to merge near-coincident points."""
     return (round(pt[0]/tol)*tol, round(pt[1]/tol)*tol, round(pt[2]/tol)*tol)
 
 def find_run_end_elevations(group, tol=0.001):
     """
     Determine start/end elevations for a PipeRunID, accounting for fittings.
     """
+    # --- Single-segment run: just return its actual endpoints ---
+    if len(group) == 1:
+        row = group.iloc[0]
+        return row['StartZ_m'], row['EndZ_m']
+
     adj = defaultdict(set)
     node_z = {}
 
@@ -82,12 +86,10 @@ def find_run_end_elevations(group, tol=0.001):
                 if f:
                     adj[p1].add(f); adj[f].add(p1)
                     adj[p2].add(f); adj[f].add(p2)
-                    node_z[f] = (p1[2] + p2[2]) / 2  # approximate Z for fitting
+                    # approximate fitting elevation as average of connected ends
+                    node_z[f] = (p1[2] + p2[2]) / 2
 
     if not adj:
-        if node_z:
-            z = next(iter(node_z.values()))
-            return z, z
         return 0.0, 0.0
 
     degrees = {n: len(neigh) for n, neigh in adj.items()}
@@ -113,6 +115,7 @@ def find_run_end_elevations(group, tol=0.001):
         za, zb = node_z[a], node_z[b]
         return (za, zb) if za <= zb else (zb, za)
 
+    # fallback for loops or messy runs: return vertical range
     zs = [z for z in node_z.values()]
     return (min(zs), max(zs))
 
