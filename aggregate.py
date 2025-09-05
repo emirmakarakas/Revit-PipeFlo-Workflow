@@ -2,8 +2,10 @@ import pandas as pd
 import numpy as np
 from itertools import combinations
 import json
+import math
+from collections import defaultdict, deque
 
-
+# --- Load config ---
 with open('config.json', 'r') as f:
     config = json.load(f)
 
@@ -27,7 +29,7 @@ except FileNotFoundError:
     print("Please ensure you have run the Dynamo script first.")
     exit()
 
-# --- 3. Define Helper Functions ---
+# --- 3. Helper Functions ---
 def calculate_length(row):
     """Calculates the 3D length of a pipe segment."""
     return np.sqrt(
@@ -36,12 +38,10 @@ def calculate_length(row):
         (row['EndZ_m'] - row['StartZ_m'])**2
     )
 
-# --- MODIFICATION START ---
 def aggregate_fittings(series):
     """
     Aggregates all unique fitting instances from a run and returns a
-    semi-colon separated string of their names. A shared fitting connecting
-    two pipes in the same run is counted only once.
+    semi-colon separated string of their names.
     """
     unique_fittings_with_id = set()
     for item in series:
@@ -49,57 +49,78 @@ def aggregate_fittings(series):
             for fitting in item.split(';'):
                 if fitting:
                     unique_fittings_with_id.add(fitting.strip())
-    
-    # Now that we have unique instances (e.g., 'Elbow[123]', 'Elbow[456]'),
-    # we extract just the names for the final list.
     fitting_names = []
-    # Sort the list of unique instances for a consistent output order
     for unique_fitting in sorted(list(unique_fittings_with_id)):
-        # Extract the name part before the '[' character
         name_part = unique_fitting.split('[')[0]
         fitting_names.append(name_part)
-        
     return "; ".join(fitting_names)
-# --- MODIFICATION END ---
 
+# --- NEW: Topology-aware elevation calculation ---
+def _snap_point(pt, tol=0.001):
+    return (round(pt[0]/tol)*tol, round(pt[1]/tol)*tol, round(pt[2]/tol)*tol)
 
-def find_farthest_points_elevations(group):
+def find_run_end_elevations(group, tol=0.001):
     """
-    Finds the two points that are farthest apart in 3D space for a group
-    of pipe segments and returns their elevations.
+    Determine start/end elevations for a PipeRunID, accounting for fittings.
     """
-    points = []
+    adj = defaultdict(set)
+    node_z = {}
+
     for _, row in group.iterrows():
-        points.append((row['StartX_m'], row['StartY_m'], row['StartZ_m']))
-        points.append((row['EndX_m'], row['EndY_m'], row['EndZ_m']))
-    
-    # Remove duplicate points to be more efficient
-    unique_points = list(set(points))
-    
-    if len(unique_points) < 2:
-        # Handle cases with a single point (e.g., a single zero-length pipe)
-        return unique_points[0][2], unique_points[0][2]
+        p1 = _snap_point((row['StartX_m'], row['StartY_m'], row['StartZ_m']), tol)
+        p2 = _snap_point((row['EndX_m'], row['EndY_m'], row['EndZ_m']), tol)
+        node_z[p1] = p1[2]
+        node_z[p2] = p2[2]
 
-    max_dist = -1
-    farthest_pair = (None, None)
+        adj[p1].add(p2)
+        adj[p2].add(p1)
 
-    # Find the pair of points with the maximum distance
-    for p1, p2 in combinations(unique_points, 2):
-        dist = np.sqrt((p2[0] - p1[0])**2 + (p2[1] - p1[1])**2 + (p2[2] - p1[2])**2)
-        if dist > max_dist:
-            max_dist = dist
-            farthest_pair = (p1, p2)
-            
-    # Return the elevations (Z-coordinate) of the two farthest points
-    return farthest_pair[0][2], farthest_pair[1][2]
+        fittings = row['ConnectedFittingNames']
+        if isinstance(fittings, str) and fittings.strip():
+            for f in fittings.split(';'):
+                f = f.strip()
+                if f:
+                    adj[p1].add(f); adj[f].add(p1)
+                    adj[p2].add(f); adj[f].add(p2)
+                    node_z[f] = (p1[2] + p2[2]) / 2  # approximate Z for fitting
+
+    if not adj:
+        if node_z:
+            z = next(iter(node_z.values()))
+            return z, z
+        return 0.0, 0.0
+
+    degrees = {n: len(neigh) for n, neigh in adj.items()}
+    endpoints = [n for n,d in degrees.items() if d == 1]
+
+    def farthest_pair(start_node):
+        seen = {start_node: 0}
+        q = deque([start_node])
+        farthest = start_node
+        while q:
+            u = q.popleft()
+            for v in adj[u]:
+                if v not in seen:
+                    seen[v] = seen[u] + 1
+                    q.append(v)
+                    if seen[v] > seen[farthest]:
+                        farthest = v
+        return farthest, seen
+
+    if len(endpoints) >= 2:
+        a, _ = farthest_pair(endpoints[0])
+        b, _ = farthest_pair(a)
+        za, zb = node_z[a], node_z[b]
+        return (za, zb) if za <= zb else (zb, za)
+
+    zs = [z for z in node_z.values()]
+    return (min(zs), max(zs))
 
 # --- 4. Process and Aggregate the Data ---
 df['CalculatedLength_m'] = df.apply(calculate_length, axis=1)
 
-# Group by PipeRunID and apply custom aggregations
 grouped = df.groupby('PipeRunID')
 
-# Aggregate simple data first
 aggregated_data = grouped.agg(
     TotalLength=('CalculatedLength_m', 'sum'),
     Spec=('SegmentName', lambda x: x.mode().iloc[0] if not x.mode().empty else np.nan),
@@ -107,19 +128,22 @@ aggregated_data = grouped.agg(
     Fittings=('ConnectedFittingNames', aggregate_fittings)
 ).reset_index()
 
-# Now, find the elevations of the start and end points for each group
-elevation_data = grouped.apply(find_farthest_points_elevations).reset_index(name='elevations')
-elevation_data[['StartElevation_m', 'EndElevation_m']] = pd.DataFrame(elevation_data['elevations'].tolist(), index=elevation_data.index)
+elevation_data = grouped.apply(find_run_end_elevations).reset_index(name='elevations')
+elevation_data[['StartElevation_m', 'EndElevation_m']] = pd.DataFrame(
+    elevation_data['elevations'].tolist(), index=elevation_data.index
+)
 
-# Merge the aggregated data and elevation data
-final_aggregated_df = pd.merge(aggregated_data, elevation_data[['PipeRunID', 'StartElevation_m', 'EndElevation_m']], on='PipeRunID')
+final_aggregated_df = pd.merge(
+    aggregated_data,
+    elevation_data[['PipeRunID', 'StartElevation_m', 'EndElevation_m']],
+    on='PipeRunID'
+)
 
 # --- 5. Create the Pipe and Node DataFrames ---
 pipe_data = []
 node_data = []
 
-for index, row in final_aggregated_df.iterrows():
-    # Pipe Entry
+for _, row in final_aggregated_df.iterrows():
     pipe_entry = {
         'device_type': 'pipe',
         'name': row['PipeRunID'],
@@ -129,8 +153,7 @@ for index, row in final_aggregated_df.iterrows():
         'size': row['Size']
     }
     pipe_data.append(pipe_entry)
-    
-    # Node Entries
+
     start_node = {
         'device_type': 'node',
         'name': f"{row['PipeRunID']}_StartNode",
