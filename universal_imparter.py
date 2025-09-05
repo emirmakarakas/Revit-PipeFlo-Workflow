@@ -2,6 +2,18 @@ import csv
 import os
 import json
 
+# This section runs first, creating the 'config' object.
+try:
+    # It's good practice to build the full path to the config file
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    config_filepath = os.path.join(script_dir, 'config.json')
+    with open(config_filepath, 'r') as f:
+        config = json.load(f)
+except FileNotFoundError:
+    # This provides a clear error if the config file is missing
+    print("FATAL ERROR: 'config.json' was not found. Please ensure it is in the same folder as the script.")
+    exit() # Stop the script if the config file is not found
+
 # --- User Settings ---
 # In your PIPE-FLO model, create a pipe with this exact name.
 # Manually add ALL the fittings you will use in your CSV to this one pipe.
@@ -133,7 +145,7 @@ def initialize_system_data_by_type():
                                 pipe_updated_successfully = True
                         except RuntimeError as e:
                             # For context, get the spec name for a better error message
-                            spec_str = pipe_obj.specification()
+                            spec_str = pipe_obj.get_specification()
                             print(f'ERROR (Row {row_num}, Pipe {name}): Could not set size to "{size_str}". Is it a valid size for spec "{spec_str}"? Details: {e}')
                             errors += 1
 
