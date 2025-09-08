@@ -24,15 +24,8 @@ PROCESSED_DATA_CSV = config['processed_data_path']
 
 def get_flo_fitting_name(revit_name, keyword_map):
     """
-    Finds the corresponding PIPE-FLO fitting name by checking if any keyword 
+    Finds the corresponding PIPE-FLO fitting name by checking if any keyword
     from the map is present in the Revit fitting name.
-    
-    Args:
-        revit_name (str): The name of the fitting from the Revit CSV.
-        keyword_map (dict): The dictionary mapping keywords to PIPE-FLO names.
-        
-    Returns:
-        str or None: The PIPE-FLO name if a match is found, otherwise None.
     """
     for keyword, flo_name in keyword_map.items():
         if keyword in revit_name:
@@ -48,7 +41,7 @@ def initialize_system_data_by_type():
     fitting_library = {}
     fitting_keyword_map = {}
 
-    # --- NEW: Load Fitting Keyword Map from CSV ---
+    # --- Load Fitting Keyword Map from CSV ---
     try:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         map_filepath = os.path.join(script_dir, FITTING_MAP_CSV)
@@ -58,40 +51,37 @@ def initialize_system_data_by_type():
             for row in reader:
                 if row and len(row) >= 2:
                     fitting_keyword_map[row[0].strip()] = row[1].strip()
-        print(f"Successfully loaded {len(fitting_keyword_map)} mappings from '{FITTING_MAP_CSV}'.")
+            print(f"Successfully loaded {len(fitting_keyword_map)} mappings from '{FITTING_MAP_CSV}'.")
     except FileNotFoundError:
-        print(f"FATAL ERROR: The fitting map file '{FITTING_MAP_CSV}' was not found. Please create it.")
-        return
-    # --------------------------------------------------
-    
+        print(f"INFO: The fitting map file '{FITTING_MAP_CSV}' was not found. Will attempt to use fitting names directly.")
+
+    # --- Build Fitting Library ---
     try:
         print(f"Building fitting library from '{TEMPLATE_PIPE_NAME}'...")
         template_pipe = pipeflo().doc().get_pipe(TEMPLATE_PIPE_NAME)
         fittings_on_template = template_pipe.get_installed_fittings()
-        
-        if not fittings_on_template:
-            print(f"FATAL ERROR: No fittings found on the template pipe '{TEMPLATE_PIPE_NAME}'. Please add fittings to it.")
-            return
 
-        for fitting in fittings_on_template:
-            fitting_library[fitting.description] = fitting
-        
-        print(f"Library built successfully with {len(fitting_library)} fittings.")
-        
+        if not fittings_on_template:
+            print(f"WARNING: No fittings found on the template pipe '{TEMPLATE_PIPE_NAME}'. No fittings can be installed.")
+        else:
+            for fitting in fittings_on_template:
+                fitting_library[fitting.description] = fitting
+            print(f"Library built successfully with {len(fitting_library)} fittings.")
+
     except RuntimeError:
-        print(f"FATAL ERROR: The template pipe named '{TEMPLATE_PIPE_NAME}' was not found. Please create it.")
-        return
-    
+        print(f"WARNING: The template pipe named '{TEMPLATE_PIPE_NAME}' was not found. The script will continue, but no fittings will be installed.")
+
+    # --- Process Main CSV File ---
     try:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         csv_filepath = os.path.join(script_dir, PROCESSED_DATA_CSV)
 
         with open(csv_filepath, 'r') as csvfile:
-            reader = csv.reader(csvfile, delimiter=',') 
+            reader = csv.reader(csvfile, delimiter=',')
             next(reader)  # Skip header row
-            
+
             print('Starting system initialization...')
-            
+
             for row_num, data_row in enumerate(reader, 2):
                 if not any(field.strip() for field in data_row):
                     continue
@@ -103,19 +93,14 @@ def initialize_system_data_by_type():
                         name = data_row[1].strip()
                         if not name: continue
 
-                        # --- MODIFICATION 1: Find the pipe first and fail early if it doesn't exist ---
                         try:
                             pipe_obj = pipeflo().doc().get_pipe(name)
                         except RuntimeError:
                             print(f'ERROR (Row {row_num}): Did not find pipe: {name}')
                             errors += 1
-                            continue # Skip to the next row in the CSV
+                            continue
 
-                        # If we get here, the pipe was found.
-                        # Now we'll update each property individually.
                         pipe_updated_successfully = False
-
-                        # --- MODIFICATION 2: Update each property in its own try/except block ---
 
                         # Update Length
                         try:
@@ -123,18 +108,18 @@ def initialize_system_data_by_type():
                             if length_str:
                                 pipe_obj.set_length(length(float(length_str), meters_length))
                                 pipe_updated_successfully = True
-                        except (ValueError, RuntimeError) as e:
-                            print(f'ERROR (Row {row_num}, Pipe {name}): Could not set length. Invalid value "{length_str}". Details: {e}')
+                        except (ValueError, RuntimeError, IndexError) as e:
+                            print(f'ERROR (Row {row_num}, Pipe {name}): Could not set length. Invalid value or column missing. Details: {e}')
                             errors += 1
-                        
+
                         # Update Specification
                         try:
                             spec_str = data_row[4].strip()
                             if spec_str:
                                 pipe_obj.set_specification(spec_str)
                                 pipe_updated_successfully = True
-                        except RuntimeError as e:
-                            print(f'ERROR (Row {row_num}, Pipe {name}): Could not set specification to "{spec_str}". Does it exist in PIPE-FLO? Details: {e}')
+                        except (RuntimeError, IndexError) as e:
+                            print(f'ERROR (Row {row_num}, Pipe {name}): Could not set specification. Does it exist or is column missing? Details: {e}')
                             errors += 1
 
                         # Update Size
@@ -143,46 +128,44 @@ def initialize_system_data_by_type():
                             if size_str:
                                 pipe_obj.set_pipe_size(size_str + ' mm')
                                 pipe_updated_successfully = True
-                        except RuntimeError as e:
-                            # For context, get the spec name for a better error message
+                        except (RuntimeError, IndexError) as e:
                             spec_str = pipe_obj.get_specification()
-                            print(f'ERROR (Row {row_num}, Pipe {name}): Could not set size to "{size_str}". Is it a valid size for spec "{spec_str}"? Details: {e}')
+                            print(f'ERROR (Row {row_num}, Pipe {name}): Could not set size. Is it a valid size for spec "{spec_str}" or is column missing? Details: {e}')
                             errors += 1
 
-                        # Update Fittings (This logic is already robust but is now in its own block)
+                        # Update Fittings
                         try:
-                            fittings_list_str = data_row[6].strip()
-                            if fittings_list_str:
-                                fittings_to_install = []
-                                revit_fitting_names = [fname.strip() for fname in fittings_list_str.split(';')]
+                            if fitting_library:
+                                fittings_list_str = data_row[6].strip()
+                                if fittings_list_str:
+                                    fittings_to_install = []
+                                    revit_fitting_names = [fname.strip() for fname in fittings_list_str.split(';')]
 
-                                for revit_name in revit_fitting_names:
-                                    pipeflo_name = get_flo_fitting_name(revit_name, fitting_keyword_map)
-                                    if pipeflo_name:
+                                    for revit_name in revit_fitting_names:
+                                        pipeflo_name = None
+                                        if fitting_keyword_map:
+                                            pipeflo_name = get_flo_fitting_name(revit_name, fitting_keyword_map)
+                                        if not pipeflo_name:
+                                            pipeflo_name = revit_name
+
                                         fitting_obj = fitting_library.get(pipeflo_name)
                                         if fitting_obj:
                                             fittings_to_install.append(fitting_obj)
                                         else:
-                                            # Specific error for a fitting not in the template library
-                                            print(f'ERROR (Row {row_num}, Pipe {name}): Fitting "{pipeflo_name}" not found in the template library. Please add it to "{TEMPLATE_PIPE_NAME}".')
+                                            print(f'ERROR (Row {row_num}, Pipe {name}): Fitting "{pipeflo_name}" not found in the template library.')
                                             errors += 1
-                                    else:
-                                        # Specific error for a fitting keyword that doesn't match
-                                        print(f'ERROR (Row {row_num}, Pipe {name}): Revit fitting "{revit_name}" did not match any keyword in "{FITTING_MAP_CSV}".')
-                                        errors += 1
-                                
-                                if fittings_to_install:
-                                    pipe_obj.set_installed_fittings(fittings_to_install)
-                                    pipe_updated_successfully = True
-                        except RuntimeError as e:
+
+                                    if fittings_to_install:
+                                        pipe_obj.set_installed_fittings(fittings_to_install)
+                                        pipe_updated_successfully = True
+                        except (RuntimeError, IndexError) as e:
                             print(f'ERROR (Row {row_num}, Pipe {name}): A critical error occurred while setting fittings. Details: {e}')
                             errors += 1
 
-                        # --- MODIFICATION 3: Report success at the end ---
                         if pipe_updated_successfully:
                             print(f"Updated Pipe: {name}")
                             updates += 1
-                    
+
                     elif device_type == 'node':
                         name = data_row[1].strip()
                         elevation_str = data_row[2].strip()
@@ -192,10 +175,10 @@ def initialize_system_data_by_type():
                                 node_obj.set_elevation(elevation(float(elevation_str), meters_elevation))
                                 print(f"Updated Node: {name}")
                                 updates += 1
-                            except RuntimeError:
-                                print(f'ERROR (Row {row_num}): Did not find node: {name}')
+                            except (RuntimeError, ValueError):
+                                print(f'ERROR (Row {row_num}): Did not find node or invalid elevation for: {name}')
                                 errors += 1
-                    
+
                     elif device_type == 'heatsourcesink':
                         name = data_row[1].strip()
                         if not name: continue
@@ -241,8 +224,8 @@ def initialize_system_data_by_type():
                             
                             print(f"Updated HeatSourceSink: {name}")
                             updates += 1
-                        except RuntimeError:
-                            print(f'ERROR (Row {row_num}): Did not find heat source/sink: {name}')
+                        except (RuntimeError, ValueError, IndexError) as e:
+                            print(f'ERROR (Row {row_num}): Could not update heat source/sink: {name}. Details: {e}')
                             errors += 1
 
                     elif device_type == 'lineup':
@@ -283,6 +266,7 @@ def initialize_system_data_by_type():
                                     cv_obj.set_operation(op_obj)
                                 else:
                                     print(f"WARNING (Row {row_num}): Unknown cv_mode '{data_row[15]}' for {name}.")
+                            
                             min_dp_str = data_row[17].strip()
                             if min_dp_str:
                                 cv_obj.set_min_dp(dp(float(min_dp_str), kPa))
@@ -293,18 +277,18 @@ def initialize_system_data_by_type():
 
                             print(f"Updated Control Valve: {name}")
                             updates += 1
-                        except RuntimeError:
-                            print(f'ERROR (Row {row_num}): Did not find Control Valve: {name}')
+                        except (RuntimeError, ValueError, IndexError) as e:
+                            print(f'ERROR (Row {row_num}): Could not update Control Valve: {name}. Details: {e}')
                             errors += 1
-                
+
                 except (ValueError, IndexError) as e:
-                    print(f'ERROR (Row {row_num}): Invalid data format. Row: {data_row}. Details: {e}')
+                    print(f'ERROR (Row {row_num}): Invalid data format or missing columns. Row: {data_row}. Details: {e}')
                     errors += 1
-    
+
     except FileNotFoundError:
-        print(f'FATAL ERROR: The CSV file was not found.')
+        print(f"FATAL ERROR: The processed data file '{PROCESSED_DATA_CSV}' was not found.")
         return
-        
+
     print('-------------------------------------------')
     print('Full System Initialization Complete.')
     print(f'Updates: {updates}')
