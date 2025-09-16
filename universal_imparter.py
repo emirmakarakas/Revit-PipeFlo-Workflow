@@ -2,7 +2,32 @@ import csv
 import os
 import json
 
-# This section runs first, creating the 'config' object.
+# --- Define normalizer first ---
+def normalize_path(path_str):
+    """
+    Accepts either:
+    - Absolute Windows path with single backslashes,
+    - Path with forward slashes,
+    - Just a filename.
+    Returns a fully normalized absolute path.
+    """
+    if not path_str:
+        return path_str
+
+    # Make sure we treat the script folder as base if only filename provided
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Replace single backslashes with forward slashes
+    fixed = path_str.replace('\\', '/')
+
+    # If it’s just a filename, join with script_dir
+    if not os.path.isabs(fixed):
+        fixed = os.path.join(script_dir, fixed)
+
+    # Collapse any .. and normalize slashes
+    return os.path.normpath(fixed)
+
+# --- Load config.json ---
 try:
     script_dir = os.path.dirname(os.path.abspath(__file__))
     config_filepath = os.path.join(script_dir, 'config.json')
@@ -12,10 +37,11 @@ except FileNotFoundError:
     print("FATAL ERROR: 'config.json' was not found. Please ensure it is in the same folder as the script.")
     exit()
 
-# --- User Settings ---
+# --- User Settings (normalized) ---
 TEMPLATE_PIPE_NAME = config['template_pipe_name']
-FITTING_MAP_CSV = config['fitting_map_path']
-PROCESSED_DATA_CSV = config['processed_data_path']
+FITTING_MAP_CSV = normalize_path(config['fitting_map_path'])
+PROCESSED_DATA_CSV = normalize_path(config['processed_data_path'])
+
 
 def get_flo_fitting_name(revit_name, keyword_map):
     for keyword, flo_name in keyword_map.items():
@@ -170,6 +196,7 @@ def initialize_system_data_by_type():
                         try:
                             hss_obj = pipeflo().doc().get_heat_source_sink(name)
 
+                            # elevations
                             inlet_val = safe_float(data_row[7].strip()) if len(data_row) > 7 else None
                             if inlet_val is not None:
                                 hss_obj.set_inlet_elevation(elevation(inlet_val, meters_elevation))
@@ -178,41 +205,48 @@ def initialize_system_data_by_type():
                             if outlet_val is not None:
                                 hss_obj.set_outlet_elevation(elevation(outlet_val, meters_elevation))
 
+                            # linked device
                             fcd_name_str = data_row[9].strip() if len(data_row) > 9 else ""
                             if fcd_name_str:
                                 hss_obj.set_linked_device(device_link(fcd_name_str))
 
+                            # temp tolerance
                             temp_tol_val = safe_float(data_row[10].strip()) if len(data_row) > 10 else None
                             if temp_tol_val is not None:
                                 hss_obj.set_temperature_tolerance(temperature_tolerance(temp_tol_val, kelvin_delta))
 
-                            if len(data_row) > 11 and data_row[11].strip():
-                                heat_transfer_rate_val = safe_float(data_row[12].strip())
-                                thermal_flow_rate_val = safe_float(data_row[13].strip())
-                                flow_rate_source_bool = (data_row[14].strip().upper() == 'TRUE') if len(data_row) > 14 else False
-                                mode = data_row[11].strip()
+                            # ---------------- NEW DEFAULT LOGIC ----------------
+                            # Always default to calculate_heat_transfer_rate unless overridden
+                            mode = data_row[11].strip().lower() if len(data_row) > 11 and data_row[11].strip() else 'calculate_heat_transfer_rate'
 
-                                if heat_transfer_rate_val is not None and thermal_flow_rate_val is not None:
-                                    if mode == 'calculate_heat_transfer_rate':
-                                        calc_mode_obj = calculate_heat_transfer_rate
-                                    elif mode == 'calculate_flow_rate':
-                                        calc_mode_obj = calculate_flow_rate
-                                    else:
-                                        calc_mode_obj = None
+                            # Defaults: 100 kW and 1 m3/hr if not provided
+                            heat_transfer_rate_val = safe_float(data_row[12].strip()) if len(data_row) > 12 and data_row[12].strip() else 100.0
+                            thermal_flow_rate_val = safe_float(data_row[13].strip()) if len(data_row) > 13 and data_row[13].strip() else 1.0
 
-                                    if calc_mode_obj:
-                                        hss_obj.set_thermal_calculation(thermal_calculation(
-                                            calc_mode_obj,
-                                            heat_transfer_rate(heat_transfer_rate_val, kw_htr),
-                                            flow_rate(thermal_flow_rate_val, m3hr),
-                                            flow_rate_source_bool
-                                        ))
+                            flow_rate_source_bool = (data_row[14].strip().upper() == 'TRUE') if len(data_row) > 14 else False
+
+                            if mode == 'calculate_heat_transfer_rate':
+                                calc_mode_obj = calculate_heat_transfer_rate
+                            elif mode == 'calculate_flow_rate':
+                                calc_mode_obj = calculate_flow_rate
+                            else:
+                                # fallback to your default anyway
+                                calc_mode_obj = calculate_heat_transfer_rate
+
+                            hss_obj.set_thermal_calculation(thermal_calculation(
+                                calc_mode_obj,
+                                heat_transfer_rate(heat_transfer_rate_val, kw_htr),
+                                flow_rate(thermal_flow_rate_val, m3hr),
+                                flow_rate_source_bool
+                            ))
 
                             print(f"Updated HeatSourceSink: {name}")
                             updates += 1
+
                         except Exception as e:
                             print(f'ERROR (Row {row_num}): Could not update heat source/sink {name}. Details: {e}')
                             errors += 1
+
 
                     # ---------------- LINEUP ----------------
                     elif device_type == 'lineup':
