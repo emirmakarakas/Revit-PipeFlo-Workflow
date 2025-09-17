@@ -272,17 +272,26 @@ def initialize_system_data_by_type():
                             if elev_val is not None:
                                 cv_obj.set_elevation(elevation(elev_val, meters_elevation))
 
-                            cv_mode_str = data_row[15].strip().lower() if len(data_row) > 15 else ""
-                            cv_setpoint_val = safe_float(data_row[16].strip()) if len(data_row) > 16 else None
-                            if cv_mode_str and cv_setpoint_val is not None:
-                                if cv_mode_str == 'flow_rate':
+                            # *** MODIFIED SECTION START ***
+                            # Default to 'flow_rate' mode if the cell is empty
+                            cv_mode_str = data_row[15].strip().lower() if len(data_row) > 15 and data_row[15].strip() else 'flow_rate'
+                            
+                            op_obj = None # Initialize the operation object
+
+                            if cv_mode_str == 'flow_rate':
+                                # Default to 1.0 m3/hr if the setpoint cell is empty
+                                cv_setpoint_val = safe_float(data_row[16].strip()) if len(data_row) > 16 and data_row[16].strip() else 1.0
+                                if cv_setpoint_val is not None:
                                     op_obj = operation(flow_rate(cv_setpoint_val, m3hr))
-                                elif cv_mode_str == 'temperature_control':
-                                    op_obj = operation(temperature_control)
-                                else:
-                                    op_obj = None
-                                if op_obj:
-                                    cv_obj.set_operation(op_obj)
+                            
+                            elif cv_mode_str == 'temperature_control':
+                                # This mode does not require a setpoint from the CSV
+                                op_obj = operation(temperature_control)
+                            
+                            # If a valid operation object was created, apply it
+                            if op_obj:
+                                cv_obj.set_operation(op_obj)
+                            # *** MODIFIED SECTION END ***
 
                             min_dp_val = safe_float(data_row[17].strip()) if len(data_row) > 17 else None
                             if min_dp_val is not None:
