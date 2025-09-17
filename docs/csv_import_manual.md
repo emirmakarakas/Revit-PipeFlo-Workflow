@@ -20,6 +20,8 @@ The script recognizes the following `device_type`s:
 
 **Golden Rule**: For any given row, you only need to fill in the columns relevant to that `device_type`. All other columns in that row can be left blank.
 
+> **💡 Pro Tip:** If you are not using certain optional parameters, you can simply **hide those columns** in your spreadsheet software (like Excel) to create a cleaner, more focused view of the data you need to enter. The script will still work perfectly.
+
 ## 3. Parameter Guide by Device Type
 
 Below is a detailed breakdown of the parameters for each device type. The column headers mentioned here are the exact headers in the CSV file.
@@ -45,34 +47,36 @@ These rows are also generated automatically by the `aggregate.py` script.
 
 ### **Heat Source / Sink**
 
-Use this to define heat exchangers, chillers, or any component that adds or removes heat.
+Use this to define heat exchangers or chillers. Thanks to intelligent defaults, you can define a functional component with very little information.
 
 * **`device_type`**: Must be `heatsourcesink`.
 * **`name`**: The exact name of the Heat Source/Sink in Pipe-Flo.
-* **`inlet elevation`**: The elevation of the device's inlet in **meters**.
-* **`outlet elevation`**: The elevation of the device's outlet in **meters**.
-* **`Flow Control Device`**: The name of a linked Flow Control Device in Pipe-Flo.
-* **`Temp Tolerance`**: The temperature tolerance value in **Kelvin**.
-* **`Thermal Calculation Mode`**: Determines how the device's thermal properties are calculated. You must use one of these exact phrases:
-  * `calculate_heat_transfer_rate`
-  * `calculate_flow_rate`
-* **`Heat Transfer Rate`**: The heat transfer rate in **kilowatts (kW)**.
-* **`Thermal Flow Rate`**: The flow rate for thermal calculations in **cubic meters per hour (m³/hr)**.
-* **`Source`**: Enter `TRUE` if the flow rate is a source, otherwise leave blank or enter `FALSE`.
+* **`Thermal Flow Rate` (Recommended)**: The flow rate for thermal calculations in **cubic meters per hour (m³/hr)**.
+    * **Default Value**: If left blank, the script will use a default value of **1.0 m³/hr**.
+
+* **Optional Parameters**:
+    * **`Thermal Calculation Mode`**: Defaults to `calculate_heat_transfer_rate`. You can override it with `calculate_flow_rate`.
+    * **`Heat Transfer Rate`**: The heat transfer rate in **kilowatts (kW)**. Defaults to **100 kW**.
+    * **`inlet elevation` / `outlet elevation`**: Elevations in **meters**.
+    * **`Flow Control Device`**: The name of a linked Flow Control Device in Pipe-Flo.
+    * **`Temp Tolerance`**: The temperature tolerance value in **Kelvin**.
+    * **`Source`**: Defaults to `FALSE`. Enter `TRUE` only if the flow rate is a source.
 
 ### **Control Valves**
 
-Use this to set the operational parameters for control valves in your system.
+Use this to set the operational parameters for control valves. The script defaults to the most common configuration (`flow_rate`), so you only need to provide a setpoint.
 
 * **`device_type`**: Must be `controlvalve`.
 * **`name`**: The exact name of the Control Valve in Pipe-Flo.
-* **`elevation`**: The valve's elevation in **meters**.
-* **`Control Valve model`**: The operational mode of the valve. You must use one of these exact phrases:
-  * `flow_rate`
-  * `temperature_control`
-* **`Control Valve setpoint`**: The target setpoint for the valve. If the model is `flow_rate`, this value is in **cubic meters per hour (m³/hr)**.
-* **`Control Valve min dP`**: The minimum design pressure drop across the valve in **kilopascals (kPa)**.
-* **`Control Valve max dP`**: The maximum design pressure drop across the valve in **kilopascals (kPa)**.
+* **`Control Valve setpoint` (Recommended)**: The target setpoint for the valve.
+    * When using the default mode, this value is in **cubic meters per hour (m³/hr)**.
+    * **Default Value**: If left blank, the script assumes a setpoint of **1.0 m³/hr**.
+
+* **Optional Parameters**:
+    * **`Control Valve model`**: Defaults to `flow_rate`. You can override it with `temperature_control`.
+    * **`elevation`**: The valve's elevation in **meters**.
+    * **`Control Valve min dP`**: Minimum pressure drop in **kilopascals (kPa)**.
+    * **`Control Valve max dP`**: Maximum pressure drop in **kilopascals (kPa)**.
 
 ### **Lineups**
 
@@ -82,45 +86,19 @@ Use this to change the active lineup in the Pipe-Flo model before a calculation.
 * **`name`**: The exact name of the lineup you want to set as active.
 
 ---
+
 ## 4. Advanced Usage: Scenario Analysis and Data Overrides
 
-You can use the CSV file to test different operational scenarios (e.g., summer vs. winter conditions) by strategically ordering the rows.
-
-### **How it Works**
-
-The `universal_imparter.py` script reads the CSV file from **top to bottom**. If you define the same device multiple times, the script will apply the parameters from the **last entry it finds**. This allows you to set up different scenarios and switch between them.
-
-### **Default Lineup Behavior**
-
-If you do **not** add any row with `device_type` set to `lineup`, the script will apply all changes to the currently active lineup in your Pipe-Flo model. By default, this is typically the **"Design Case"** lineup.
+You can use the CSV file to test different operational scenarios by strategically ordering the rows. The script reads the CSV file from **top to bottom**, so if you define the same device multiple times, the parameters from the **last entry it finds** will be applied.
 
 ### **Example: Setting Up Scenarios**
 
-To manage multiple scenarios, you can add `lineup` rows followed by the specific device parameters for that scenario.
-
-1. Add a `lineup` row to specify the scenario (e.g., "Summer Operation").
-2. Immediately after, add rows for any devices (`heatsourcesink`, `controlvalve`, etc.) with the parameters for that specific scenario.
-3. To switch to a different scenario, simply add another `lineup` row (e.g., "Winter Operation") followed by the new parameters for the same devices.
-
-By re-running the script, Pipe-Flo will be updated with the settings from the last defined lineup and its corresponding device parameters.
-
----
-## 5. Example CSV Structure
-
-Here is a sample of what a completed `processed_data_for_pipeflo.csv` file might look like, including a scenario setup. Notice how only the relevant columns are filled for each row.
-
-| device_type      | name                    | elevation | length | spec           | size | fittings                    | ... | Control Valve model | Control Valve setpoint |
-| :--------------- | :--------------------- | :------- | :---- | :------------- | :-- | :-------------------------- | :-- | :----------------- | :------------------- |
-| `pipe`           | CHW-S-P1-J1            |          | 55.4  | Carbon Steel   | 150  | Std Elbow 90; Reducer       |     |                    |                      |
-| `node`           | CHW-S-P1-J1_StartNode  | 3.5      |       |                |      |                             |     |                    |                      |
-| `node`           | CHW-S-P1-J1_EndNode    | 10.2     |       |                |      |                             |     |                    |                      |
-| `heatsourcesink` | Chiller-1              |          |       |                |      |                             |     |                    |                      |
-| ...              |                        |          |       |                |      |                             |     |                    |                      |
-| **`lineup`**     | **Summer Operation**    |          |       |                |      |                             |     |                    |                      |
-| `controlvalve`   | FCV-01                 | 4.1      |       |                |      |                             |     | `flow_rate`        | **120**              |
-|                  |                        |          |       |                |      |                             |     |                    |                      |
-| **`lineup`**     | **Winter Operation**    |          |       |                |      |                             |     |                    |                      |
-| `controlvalve`   | FCV-01                 | 4.1      |       |                |      |                             |     | `flow_rate`        | **85**               |
-
+| device_type  | name               | ... | Control Valve setpoint |
+| :----------- | :----------------- | :-- | :------------------- |
+| **`lineup`** | **Summer Operation** |     |                      |
+| `controlvalve` | FCV-01             |     | **120** |
+|              |                    |     |                      |
+| **`lineup`** | **Winter Operation** |     |                      |
+| `controlvalve` | FCV-01             |     | **85** |
 
 In this example, after running the script, the active lineup will be "Winter Operation" and the control valve `FCV-01` will have its setpoint updated to `85`.
