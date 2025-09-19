@@ -4,12 +4,43 @@ import json
 import math
 from collections import defaultdict, deque
 
-# --- Load config ---
-with open('config.json', 'r') as f:
-    config = json.load(f)
+# --- Define normalizer first ---
+def normalize_path(path_str):
+    """
+    Accepts either:
+    - Absolute Windows path with single backslashes,
+    - Path with forward slashes,
+    - Just a filename.
+    Returns a fully normalized absolute path.
+    """
+    if not path_str:
+        return path_str
 
-input_csv_path = config['revit_export_path']
-output_csv_path = config['processed_data_path']
+    # Make sure we treat the script folder as base if only filename provided
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Replace single backslashes with forward slashes
+    fixed = path_str.replace('\\', '/')
+
+    # If it’s just a filename, join with script_dir
+    if not os.path.isabs(fixed):
+        fixed = os.path.join(script_dir, fixed)
+
+    # Collapse any .. and normalize slashes
+    return os.path.normpath(fixed)
+
+# --- Load config.json ---
+try:
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    config_filepath = os.path.join(script_dir, 'config.json')
+    with open(config_filepath, 'r') as f:
+        config = json.load(f)
+except FileNotFoundError:
+    print("FATAL ERROR: 'config.json' was not found. Please ensure it is in the same folder as the script.")
+    exit()
+
+input_csv_path = normalize_path(config['revit_export_path'])
+output_csv_path = normalize_path(config['processed_data_path'])
 
 # --- 1. Define the target header structure ---
 output_columns = [
