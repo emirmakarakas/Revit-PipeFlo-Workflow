@@ -1,24 +1,25 @@
 keyword,pipeflo_name
-MAGI-GEN-T,Std Tee Thru
+MAGI-GEN-T,Tee - Flow Thru Run
 MAGI-GEN-B,Pipe Bend - r/d 1
 MAGI-GEN-R,Reducer - Contraction
-MAGI-GEN-ELBOW,Std Elbow 90
+MAGI-GEN-ELBOW,Elbow - Standard 90°
 MAGI-PEX-B,Pipe Bend - r/d 1
 CVSF,Butterfly
+Butterfly,Butterfly
 BFV,Butterfly
-TEE-13106_CS,Tee - Flow Thru Branch
+TEE-13106_CS,Tee - Flow Thru Run
 TRANSITION-11109-0001,Reducer - Enlargement
 Threaded-Elbow,Elbow - Standard 90°
 ELBOW-12506,Elbow - Standard 90°
 EN 10253-3 Plug,Plug
 OUTLET-1030040001,Exit - Rounded
-TEE,Std Tee Thru
-ELBOW,Std Elbow 90
+TEE,Tee - Flow Thru Run
+ELBOW,Elbow - Standard 90°
 Reducer,Reducer - Enlargement
 Plug,Plug
 MAGI-PEX-R,Reducer - Enlargement
-MAGI-PEX-T,Std Tee Thru
+MAGI-PEX-T,Tee - Flow Thru Run
 MAGI-FE-B,Pipe Bend - r/d 1
 MAGI-FE-R,Reducer - Enlargement
-MAGI-FE-T,Std Tee Thru
+MAGI-FE-T,Tee - Flow Thru Run
 TP-MC-00-PIA-305-Valve-Butterfly-Lug,Butterfly
