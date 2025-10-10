@@ -7,28 +7,26 @@ from collections import defaultdict, deque
 
 # --- Define normalizer first ---
 def normalize_path(path_str):
-    """
-    Accepts either:
-    - Absolute Windows path with single backslashes,
-    - Path with forward slashes,
-    - Just a filename.
-    Returns a fully normalized absolute path.
+    """Normalize a path value from config.
+
+    Behavior:
+    - If path_str is falsy, return it unchanged.
+    - If path_str is an absolute path, return os.path.normpath(path_str).
+    - If path_str is relative, treat it relative to the script directory and return the normalized result.
+
+    This matches the simpler behavior used in `universal_imparter.py`.
     """
     if not path_str:
         return path_str
 
-    # Make sure we treat the script folder as base if only filename provided
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # Replace single backslashes with forward slashes
-    fixed = path_str.replace('\\', '/')
+    # If already absolute, just normalize and return
+    if os.path.isabs(path_str):
+        return os.path.normpath(path_str)
 
-    # If it’s just a filename, join with script_dir
-    if not os.path.isabs(fixed):
-        fixed = os.path.join(script_dir, fixed)
-
-    # Collapse any .. and normalize slashes
-    return os.path.normpath(fixed)
+    # Otherwise join with script directory and normalize
+    return os.path.normpath(os.path.join(script_dir, path_str))
 
 # --- Load config.json ---
 try:

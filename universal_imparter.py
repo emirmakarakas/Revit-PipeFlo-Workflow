@@ -2,30 +2,7 @@ import csv
 import os
 import json
 
-# --- Define normalizer first ---
-def normalize_path(path_str):
-    """
-    Accepts either:
-    - Absolute Windows path with single backslashes,
-    - Path with forward slashes,
-    - Just a filename.
-    Returns a fully normalized absolute path.
-    """
-    if not path_str:
-        return path_str
-
-    # Make sure we treat the script folder as base if only filename provided
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-
-    # Replace single backslashes with forward slashes
-    fixed = path_str.replace('\\', '/')
-
-    # If it’s just a filename, join with script_dir
-    if not os.path.isabs(fixed):
-        fixed = os.path.join(script_dir, fixed)
-
-    # Collapse any .. and normalize slashes
-    return os.path.normpath(fixed)
+# (normalize_path removed by user request: config paths are used as-is)
 
 # --- Load config.json ---
 try:
@@ -39,8 +16,17 @@ except FileNotFoundError:
 
 # --- User Settings (normalized) ---
 TEMPLATE_PIPE_NAME = config['template_pipe_name']
-FITTING_MAP_CSV = normalize_path(config['fitting_map_path'])
-PROCESSED_DATA_CSV = normalize_path(config['processed_data_path'])
+
+# Use config paths as provided. If relative, make them absolute relative to script dir.
+def make_path_from_config(path_value):
+    if not path_value:
+        return path_value
+    if os.path.isabs(path_value):
+        return os.path.normpath(path_value)
+    return os.path.normpath(os.path.join(script_dir, path_value))
+
+FITTING_MAP_CSV = make_path_from_config(config['fitting_map_path'])
+PROCESSED_DATA_CSV = make_path_from_config(config['processed_data_path'])
 
 
 def get_flo_fitting_name(revit_name, keyword_map):
@@ -51,6 +37,8 @@ def get_flo_fitting_name(revit_name, keyword_map):
 
 def safe_float(value, default=None):
     try:
+        if value is None or str(value).strip() == '':
+            return default
         return float(value)
     except (ValueError, TypeError):
         return default
@@ -152,7 +140,12 @@ def initialize_system_data_by_type():
                                 errors += 1
 
                         # Update Fittings
-                        if len(data_row) > 6 and data_row[6].strip() and fitting_library:
+                        # NOTE: Automatic installation of fittings into Pipe-Flo is disabled by default.
+                        # The original logic collected fittings from the CSV and attempted to map and
+                        # install them on the template pipe. That behaviour can be re-enabled by
+                        # removing the guard below, but it's commented out to avoid unexpected
+                        # modifications to Pipe-Flo models during initial runs or testing.
+                        if False and len(data_row) > 6 and data_row[6].strip() and fitting_library:
                             fittings_to_install = []
                             revit_fitting_names = [fname.strip() for fname in data_row[6].split(';')]
                             for revit_name in revit_fitting_names:
@@ -219,9 +212,9 @@ def initialize_system_data_by_type():
                             # Always default to calculate_heat_transfer_rate unless overridden
                             mode = data_row[11].strip().lower() if len(data_row) > 11 and data_row[11].strip() else 'calculate_heat_transfer_rate'
 
-                            # Defaults: 100 kW and 1 m3/hr if not provided
-                            heat_transfer_rate_val = safe_float(data_row[12].strip()) if len(data_row) > 12 and data_row[12].strip() else 100.0
-                            thermal_flow_rate_val = safe_float(data_row[13].strip()) if len(data_row) > 13 and data_row[13].strip() else 1.0
+                            # Defaults: 100 kW and 1 m3/hr if not provided or invalid
+                            heat_transfer_rate_val = safe_float(data_row[12].strip() if len(data_row) > 12 else '', 100.0)
+                            thermal_flow_rate_val = safe_float(data_row[13].strip() if len(data_row) > 13 else '', 1.0)
 
                             flow_rate_source_bool = (data_row[14].strip().upper() == 'TRUE') if len(data_row) > 14 else False
 
@@ -279,8 +272,8 @@ def initialize_system_data_by_type():
                             op_obj = None # Initialize the operation object
 
                             if cv_mode_str == 'flow_rate':
-                                # Default to 1.0 m3/hr if the setpoint cell is empty
-                                cv_setpoint_val = safe_float(data_row[16].strip()) if len(data_row) > 16 and data_row[16].strip() else 1.0
+                                # Default to 1.0 m3/hr if the setpoint cell is empty or invalid
+                                cv_setpoint_val = safe_float(data_row[16].strip() if len(data_row) > 16 else '', 1.0)
                                 if cv_setpoint_val is not None:
                                     op_obj = operation(flow_rate(cv_setpoint_val, m3hr))
                             

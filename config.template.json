@@ -3,11 +3,11 @@
 
   "//": "--- 1. Dynamo Output File ---",
   "revit_export_path": "C:/PATH/TO/YOUR/PROJECT/raw_data_from_revit.csv",
-  "//": "Enter the FULL path where the Dynamo script should save the raw data it extracts from Revit. You can name the .csv file anything you like.",
+  "//": "Enter the FULL path where the Dynamo script should save the raw data it extracts from Revit. You can name the .csv file anything you like. IMPORTANT: When pasting Windows paths into this file, use forward slashes (/) or escape backslashes (\\\\). Example: 'C:/Users/you/Desktop/file.csv' or 'C:\\\\Users\\\\you\\\\Desktop\\\\file.csv'.",
 
   "//": "--- 2. Processed Data File ---",
   "processed_data_path": "C:/PATH/TO/YOUR/PROJECT/processed_data_for_pipeflo.csv",
-  "//": "Enter the FULL path where the 'aggregate.py' script will save the cleaned-up data. This is the file that will be imported into Pipe-Flo. You can name it anything you like.",
+  "//": "Enter the FULL path where the 'aggregate.py' script will save the cleaned-up data. This is the file that will be imported into Pipe-Flo. You can name it anything you like. IMPORTANT: When pasting Windows paths into this file, use forward slashes (/) or escape backslashes (\\\\).",
 
   "//": "--- 3. Pipe-Flo Settings ---",
   "fitting_map_path": "fitting_map.csv",
